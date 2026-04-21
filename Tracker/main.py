@@ -373,3 +373,46 @@ def run_index_operation(file_path, operation, use_index=False):
         gdf = gdf.iloc[:-5]
 
     return True
+
+@track
+def run_compression_operation(file_path, operation):
+
+    import geopandas as gpd
+    import pandas as pd
+    import gzip
+
+    # -----------------------------
+    # READ FILE (handle compression)
+    # -----------------------------
+    if file_path.endswith(".parquet"):
+        gdf = gpd.read_parquet(file_path)
+
+    elif file_path.endswith(".gz"):
+        with gzip.open(file_path, 'rb') as f:
+            gdf = gpd.read_file(f)
+
+    else:
+        gdf = gpd.read_file(file_path)
+
+    query_geom = gdf.geometry.iloc[0]
+
+    # -----------------------------
+    # OPERATIONS
+    # -----------------------------
+    if operation == "SELECT":
+        _ = gdf[gdf.geometry.intersects(query_geom)]
+
+    elif operation == "JOIN":
+        _ = gpd.sjoin(gdf, gdf.copy(), how="inner", predicate="intersects")
+
+    elif operation == "INSERT":
+        new_row = gdf.iloc[0]
+        gdf = pd.concat([gdf, new_row.to_frame().T], ignore_index=True)
+
+    elif operation == "UPDATE":
+        gdf["geometry"] = gdf.translate(xoff=0.001, yoff=0.001)
+
+    elif operation == "DELETE":
+        gdf = gdf.iloc[:-5]
+
+    return True

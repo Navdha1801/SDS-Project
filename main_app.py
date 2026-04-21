@@ -29,7 +29,7 @@ from decimal import Decimal
 from Tracker.main import run_format_operation
 from Tracker.main import run_experiment
 from Tracker.main import run_index_operation
-
+from Tracker.main import run_compression_operation
 
 sys.path.insert(0, "./")
 
@@ -1034,8 +1034,9 @@ if __name__ == "__main__":
     print("1 → Format vs Operation (Dataset Size)")
     print("2 → Geometry Complexity Experiment")
     print("3 → Spatial Index (With vs Without Index)")
+    print("6 → Compression Codec Experiment") 
 
-    choice = input("\nEnter your choice (1/2/3): ").strip()
+    choice = input("\nEnter your choice (1/2/3/6): ").strip()
 
     formats = ["geojson", "shp", "gpkg", "parquet"]
     operations = ["SELECT", "INSERT", "UPDATE", "DELETE", "JOIN"]
@@ -1127,9 +1128,34 @@ if __name__ == "__main__":
                     run_index_operation(file_path, op, use_index=(case == "WITH_INDEX"))
                 except Exception as e:
                     print("Error:", e)
+    
+    elif choice == "6":
 
-    # ======================================================
-    # INVALID INPUT
-    # ======================================================
+     print("\n\n🧪 Running Compression Codec Experiment\n")
+
+     compression_cases = {
+        "PARQUET_UNCOMPRESSED": "compression_data/parquet_uncompressed.parquet",
+        "PARQUET_SNAPPY": "compression_data/parquet_snappy.parquet",
+        "PARQUET_ZSTD": "compression_data/parquet_zstd.parquet",
+        "GEOJSON_NORMAL": "compression_data/geojson_normal.geojson",
+        "GEOJSON_GZIP": "compression_data/geojson_gzip.geojson.gz",
+        "GPKG_NORMAL": "compression_data/normal_gpkg.gpkg",
+        "GPKG_SIMPLIFIED": "compression_data/simplified_gpkg.gpkg"
+     }
+
+     operations = ["SELECT", "INSERT", "UPDATE", "DELETE", "JOIN"]
+
+     for comp, file_path in compression_cases.items():
+
+        print(f"\n{'='*20} {comp} {'='*20}")
+
+        for op in operations:
+            print(f"\n[{comp}] → {op}")
+
+            try:
+                run_compression_operation(file_path, op)
+            except Exception as e:
+                print("Error:", e)
+    
     else:
         print("\n❌ Invalid choice. Please run again and select 1 or 2 or 3.")
