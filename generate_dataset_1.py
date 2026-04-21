@@ -1,7 +1,7 @@
 import geopandas as gpd
 import os
 
-file = "data/bosnia-herzegovina.gpkg"
+file = "data/tanzania.gpkg"
 
 # ✅ USE THIS LAYER
 layer_name = "gis_osm_pois_a_free"

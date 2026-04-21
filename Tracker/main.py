@@ -228,3 +228,64 @@ def run_geometry_operation(file_path, operation):
         gdf.to_parquet(file_path)
     else:
         gdf.to_file(file_path)
+
+@track
+def run_index_operation(file_path, operation, use_index=False):
+    import geopandas as gpd
+    import pandas as pd
+
+    # -----------------------------
+    # READ FILE
+    # -----------------------------
+    if file_path.endswith(".parquet"):
+        gdf = gpd.read_parquet(file_path)
+    else:
+        gdf = gpd.read_file(file_path)
+
+    query_geom = gdf.geometry.iloc[0]
+
+    # -----------------------------
+    # SELECT / JOIN (INDEX MATTERS)
+    # -----------------------------
+    if operation == "SELECT":
+
+        if use_index:
+            # ✅ WITH INDEX
+            sindex = gdf.sindex
+            possible = list(sindex.intersection(query_geom.bounds))
+            result = gdf.iloc[possible]
+            result = result[result.geometry.intersects(query_geom)]
+        else:
+            # ❌ WITHOUT INDEX
+            result = gdf[gdf.geometry.intersects(query_geom)]
+
+    elif operation == "JOIN":
+
+        gdf2 = gdf.copy()
+
+        if use_index:
+            # indexed join (approximate simulation)
+            sindex = gdf2.sindex
+            matches = []
+
+            for geom in gdf.geometry:
+                possible = list(sindex.intersection(geom.bounds))
+                matches.append(len(possible))
+        else:
+            # full scan join
+            _ = gpd.sjoin(gdf, gdf2, how="inner", predicate="intersects")
+
+    # -----------------------------
+    # OTHER OPERATIONS (same)
+    # -----------------------------
+    elif operation == "INSERT":
+        new_row = gdf.iloc[0]
+        gdf = pd.concat([gdf, new_row.to_frame().T], ignore_index=True)
+
+    elif operation == "UPDATE":
+        gdf["geometry"] = gdf.translate(xoff=0.001, yoff=0.001)
+
+    elif operation == "DELETE":
+        gdf = gdf.iloc[:-5]
+
+    return True

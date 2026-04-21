@@ -31,6 +31,7 @@ from datetime import datetime
 from decimal import Decimal
 from Tracker.main import run_format_operation
 from Tracker.main import run_geometry_operation
+from Tracker.main import run_index_operation
 
 sys.path.insert(0, "./")
 sys.path.insert(0, "./")
@@ -1324,8 +1325,9 @@ if __name__ == '__main__':
     print("\n📊 Select Experiment to Run:\n")
     print("1 → Format vs Operation (Dataset Size)")
     print("2 → Geometry Complexity Experiment")
+    print("3 → Spatial Index (With vs Without Index)")
 
-    choice = input("\nEnter your choice (1/2): ").strip()
+    choice = input("\nEnter your choice (1/2/3): ").strip()
 
     formats = ["geojson", "shp", "gpkg", "parquet"]
     operations = ["SELECT", "INSERT", "UPDATE", "DELETE", "JOIN"]
@@ -1333,7 +1335,7 @@ if __name__ == '__main__':
     # ======================================================
     # OPTION 1: FORMAT EXPERIMENT
     # ======================================================
-    if choice == "1" :
+    if choice == "1":
 
         print("\n🚀 Running Spatial Format Energy Experiment\n")
 
@@ -1351,7 +1353,7 @@ if __name__ == '__main__':
     # ======================================================
     # OPTION 2: GEOMETRY EXPERIMENT
     # ======================================================
-    if choice == "2":
+    elif choice == "2":
 
         print("\n\n🔥 Running Geometry Complexity Experiment\n")
 
@@ -1377,7 +1379,38 @@ if __name__ == '__main__':
                         print("Error:", e)
 
     # ======================================================
+    # OPTION 3: INDEX EXPERIMENT
+    # ======================================================
+    elif choice == "3":
+
+        print("\n\n⚡ Running Spatial Index Experiment\n")
+
+        # Index matters mainly for SELECT and JOIN
+        index_operations = ["SELECT", "JOIN"]
+
+        cases = {
+            "NO_INDEX": "index_data/sample_noindex.gpkg",
+            "WITH_INDEX": "index_data/sample_index.gpkg"
+        }
+
+        for case, file_path in cases.items():
+
+            print(f"\n{'='*20} {case} {'='*20}")
+
+            for op in index_operations:
+                print(f"\n[{case}] → {op}")
+
+                try:
+                    run_index_operation(
+                        file_path,
+                        op,
+                        use_index=(case == "WITH_INDEX")
+                    )
+                except Exception as e:
+                    print("Error:", e)
+
+    # ======================================================
     # INVALID INPUT
     # ======================================================
-    if choice not in ["1", "2"]:
-        print("\n❌ Invalid choice. Please run again and select 1 or 2.")
+    else:
+        print("\n❌ Invalid choice. Please run again and select 1, 2, or 3.")
