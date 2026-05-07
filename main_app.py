@@ -28,6 +28,7 @@ from datetime import datetime
 from decimal import Decimal
 from Tracker.main import run_format_operation
 from Tracker.main import run_experiment
+from Tracker.main import run_geometry_operation
 from Tracker.main import run_index_operation
 from Tracker.main import run_compression_operation
 
@@ -1028,13 +1029,17 @@ def execute_mongodb_query(query, db_name):
 # MAIN
 # ======================================================
 
+# ======================================================
+# MAIN
+# ======================================================
+
 if __name__ == "__main__":
 
     print("\n📊 Select Experiment to Run:\n")
     print("1 → Format vs Operation (Dataset Size)")
     print("2 → Geometry Complexity Experiment")
     print("3 → Spatial Index (With vs Without Index)")
-    print("6 → Compression Codec Experiment") 
+    print("6 → Compression Codec Experiment")
 
     choice = input("\nEnter your choice (1/2/3/6): ").strip()
 
@@ -1045,117 +1050,228 @@ if __name__ == "__main__":
     # OPTION 1: FORMAT EXPERIMENT
     # ======================================================
     if choice == "1":
+
         print("\n🚀 Running Spatial Format Energy Experiment\n")
+        results = []
 
         for fmt in formats:
             file_path = f"data/sample.{fmt}"
+
             for op in operations:
                 print(f"\n[FORMAT] {fmt.upper()} | {op}")
+
                 try:
-                    run_format_operation(file_path, op)
+                    result = run_experiment(
+                        run_format_operation, file_path, op, runs=30
+                    )
+
+                    # ---------------------------------
+                    # CREATE CLEAN ROW FOR CSV
+                    # ---------------------------------
+                    row = {
+                        "Dataset": "Bosnia",   # change accordingly
+                        "Format": fmt.upper(),
+                        "Operation": op,
+                        "Energy": result["mean_energy"],
+                        "Time": result["mean_time"],
+                    }
+
+                    results.append(row)
+
+                    print(f"  mean_time:   {result['mean_time']:.4f}s")
+                    print(f"  mean_energy: {result['mean_energy']:.6f}J")
+
                 except Exception as e:
                     print("Error:", e)
+
+        os.makedirs("results", exist_ok=True)
+
+        pd.DataFrame(results).to_csv(
+            "d1_plots/format_experiment.csv",
+            mode="a",
+            header=not os.path.exists("d1_plots/format_experiment.csv"),
+            index=False
+        )
+
+        print("\n✅ Results saved to d1_plots/format_experiment.csv")
 
     # ======================================================
     # OPTION 2: GEOMETRY EXPERIMENT
     # ======================================================
     elif choice == "2":
-        print("\n\n🔥 Running Geometry Complexity Experiment\n")
 
-        geometry_types = ["points", "lines", "simple_polygons", "complex_polygons"]
+        print("\n🔥 Running Geometry Complexity Experiment\n")
+
+        geometry_types = [
+            "points",
+            "lines",
+            "simple_polygons",
+            "complex_polygons"
+        ]
+
         results = []
 
         for geom in geometry_types:
+
             print(f"\n{'='*20} {geom.upper()} {'='*20}")
 
             for fmt in formats:
+
                 file_path = f"geom_data/{geom}.{fmt}"
 
                 for op in operations:
+
                     print(f"\n[GEOMETRY] {geom.upper()} → {fmt.upper()} → {op}")
 
                     try:
-                        result = run_experiment(file_path, op, runs=20)
-                        result["geometry"] = geom
-                        result["format"] = fmt
-                        results.append(result)
+
+                        result = run_experiment(
+                            run_geometry_operation,
+                            file_path,
+                            op,
+                            runs=30
+                        )
+
+                        # -----------------------------------
+                        # STORE EXACT CSV FORMAT
+                        # -----------------------------------
+                        row = {
+                            "operation": op,
+                            "file": file_path,
+                            "mean_time": result["mean_time"],
+                            "std_time": result["std_time"],
+                            "mean_energy": result["mean_energy"],
+                            "std_energy": result["std_energy"],
+                            "geometry": geom,
+                            "format": fmt
+                        }
+
+                        results.append(row)
 
                         print(f"  mean_time:   {result['mean_time']:.4f}s")
+                        print(f"  std_time:    {result['std_time']:.4f}s")
                         print(f"  mean_energy: {result['mean_energy']:.6f}J")
                         print(f"  std_energy:  {result['std_energy']:.6f}J")
 
                     except Exception as e:
                         print("Error:", e)
-                        results.append(
-                            {
-                                "geometry": geom,
-                                "format": fmt,
-                                "operation": op,
-                                "mean_time": None,
-                                "std_time": None,
-                                "mean_energy": None,
-                                "std_energy": None,
-                            }
-                        )
 
-        os.makedirs("results", exist_ok=True)
-        pd.DataFrame(results).to_csv("results/geometry_experiment.csv", index=False)
-        print("\nResults saved to results/geometry_experiment.csv")
+        # -----------------------------------
+        # SAVE CSV
+        # -----------------------------------
+        os.makedirs("d2_plots", exist_ok=True)
+
+        pd.DataFrame(results).to_csv(
+            "d2_plots/geometry_experiments.csv",
+            index=False
+        )
+
+        print("\n✅ Results saved to d2_plots/geometry_experiments.csv")
 
     # ======================================================
     # OPTION 3: INDEX EXPERIMENT
     # ======================================================
     elif choice == "3":
 
-        print("\n\n⚡ Running Spatial Index Experiment\n")
+        print("\n⚡ Running Spatial Index Experiment\n")
 
-        # Index matters mainly for SELECT and JOIN
         index_operations = ["SELECT", "JOIN"]
-
         cases = {
             "NO_INDEX": "index_data/sample_noindex.gpkg",
             "WITH_INDEX": "index_data/sample_index.gpkg",
         }
 
-        for case, file_path in cases.items():
+        results = []
 
+        for case, file_path in cases.items():
             print(f"\n{'='*20} {case} {'='*20}")
 
             for op in index_operations:
                 print(f"\n[{case}] → {op}")
 
                 try:
-                    run_index_operation(file_path, op, use_index=(case == "WITH_INDEX"))
+
+                    # wrapper to pass use_index flag
+                    def wrapper(fp, oper):
+                        return run_index_operation(
+                            fp, oper, use_index=(case == "WITH_INDEX")
+                        )
+
+                    result = run_experiment(wrapper, file_path, op, runs=30)
+
+                    result["case"] = case
+                    result["operation"] = op
+                    results.append(result)
+
+                    print(f"  mean_time:   {result['mean_time']:.4f}s")
+                    print(f"  mean_energy: {result['mean_energy']:.6f}J")
+
                 except Exception as e:
                     print("Error:", e)
-    
+
+        os.makedirs("results", exist_ok=True)
+
+        pd.DataFrame(results).to_csv(
+            "d3_plots/index_experiment.csv",
+            index=False
+        )
+
+        print("\n✅ Results saved to d3_plots/index_experiment.csv")
+
+    # ======================================================
+    # OPTION 6: COMPRESSION EXPERIMENT
+    # ======================================================
     elif choice == "6":
 
-     print("\n\n🧪 Running Compression Codec Experiment\n")
+        print("\n🧪 Running Compression Codec Experiment\n")
 
-     compression_cases = {
-        "PARQUET_UNCOMPRESSED": "compression_data/parquet_uncompressed.parquet",
-        "PARQUET_SNAPPY": "compression_data/parquet_snappy.parquet",
-        "PARQUET_ZSTD": "compression_data/parquet_zstd.parquet",
-        "GEOJSON_NORMAL": "compression_data/geojson_normal.geojson",
-        "GEOJSON_GZIP": "compression_data/geojson_gzip.geojson.gz",
-        "GPKG_NORMAL": "compression_data/normal_gpkg.gpkg",
-        "GPKG_SIMPLIFIED": "compression_data/simplified_gpkg.gpkg"
-     }
+        compression_cases = {
+            "PARQUET_UNCOMPRESSED": "compression_data/parquet_uncompressed.parquet",
+            "PARQUET_SNAPPY": "compression_data/parquet_snappy.parquet",
+            "PARQUET_ZSTD": "compression_data/parquet_zstd.parquet",
+            "GEOJSON_NORMAL": "compression_data/geojson_normal.geojson",
+            "GEOJSON_GZIP": "compression_data/geojson_gzip.geojson.gz",
+            "GPKG_NORMAL": "compression_data/normal_gpkg.gpkg",
+            "GPKG_SIMPLIFIED": "compression_data/simplified_gpkg.gpkg",
+        }
 
-     operations = ["SELECT", "INSERT", "UPDATE", "DELETE", "JOIN"]
+        results = []
 
-     for comp, file_path in compression_cases.items():
+        for comp, file_path in compression_cases.items():
+            print(f"\n{'='*20} {comp} {'='*20}")
 
-        print(f"\n{'='*20} {comp} {'='*20}")
+            for op in operations:
+                print(f"\n[{comp}] → {op}")
 
-        for op in operations:
-            print(f"\n[{comp}] → {op}")
+                try:
+                    result = run_experiment(
+                        run_compression_operation,
+                        file_path,
+                        op,
+                        runs=30
+                    )
 
-            try:
-                run_compression_operation(file_path, op)
-            except Exception as e:
-                print("Error:", e)
-    
+                    result["compression"] = comp
+                    result["operation"] = op
+                    results.append(result)
+
+                    print(f"  mean_time:   {result['mean_time']:.4f}s")
+                    print(f"  mean_energy: {result['mean_energy']:.6f}J")
+
+                except Exception as e:
+                    print("Error:", e)
+
+        os.makedirs("results", exist_ok=True)
+
+        pd.DataFrame(results).to_csv(
+            "d6_plots/compression_experiment.csv",
+            index=False
+        )
+
+        print("\n✅ Results saved to d6_plots/compression_experiment.csv")
+
+    # ======================================================
+    # INVALID INPUT
+    # ======================================================
     else:
-        print("\n❌ Invalid choice. Please run again and select 1 or 2 or 3.")
+        print("\n❌ Invalid choice. Please run again.")

@@ -233,39 +233,56 @@ def run_geometry_operation(file_path, operation):
 # and collects the (duration, energy) tuples returned by @track
 
 
-def run_experiment(file_path, operation, runs=20):
+def run_experiment(operation_func, file_path=None, operation=None, runs=30):
     """
-    Runs run_geometry_operation `runs` times for a given file and operation.
-    Restores the original file before each run for INSERT, UPDATE, DELETE
-    so every run operates on identical data — same principle as DBJoules
-    resetting database state between runs.
-    Returns mean and std of duration and energy across all runs.
+    Generic experiment runner for ANY operation function
+    Supports stabilization (ignore first 10 + last 10 runs)
     """
-    backup_path = file_path + ".bak"
-    shutil.copy2(file_path, backup_path)
+
+    import shutil
+    import os
+    import numpy as np
+
+    # Backup only if file_path exists (for write ops)
+    backup_path = None
+    if file_path is not None and os.path.exists(file_path):
+        backup_path = file_path + ".bak"
+        shutil.copy2(file_path, backup_path)
 
     times, energies = [], []
 
     for i in range(runs):
-        if operation in ("INSERT", "UPDATE", "DELETE"):
+
+        # Restore dataset before write operations
+        if backup_path and operation in ("INSERT", "UPDATE", "DELETE"):
             shutil.copy2(backup_path, file_path)
 
-        duration, energy, _ = run_geometry_operation(file_path, operation)
+        duration, energy, _ = operation_func(file_path, operation)
+
         times.append(duration)
         energies.append(energy)
 
-    shutil.copy2(backup_path, file_path)
-    os.remove(backup_path)
+    # Restore original file
+    if backup_path:
+        shutil.copy2(backup_path, file_path)
+        os.remove(backup_path)
+
+    # -----------------------------
+    # STABILIZATION
+    # -----------------------------
+    if len(times) >= 30:
+        times = times[10:-10]
+        energies = energies[10:-10]
+    elif len(times) >= 20:
+        times = times[5:-5]
+        energies = energies[5:-5]
 
     return {
-        "operation": operation,
-        "file": file_path,
         "mean_time": np.mean(times),
         "std_time": np.std(times),
         "mean_energy": np.mean(energies),
         "std_energy": np.std(energies),
     }
-
 
 # ---------------------------
 # OLD FORMAT OPERATION (kept for Option 1 compatibility)
