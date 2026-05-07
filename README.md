@@ -10,12 +10,12 @@ SpatialJoules measures the energy consumed by common spatial operations (SELECT,
 
 **Experiments:**
 
-| ID | Experiment | Variable |
-|----|------------|----------|
-| D1 | Format vs Operation | Dataset size (Small / Medium / Large) |
-| D2 | Geometry Complexity | Points, Lines, Simple Polygons, Complex Polygons |
-| D3 | Spatial Indexing | With vs Without spatial index |
-| D6 | Compression Codec | Parquet (uncompressed / Snappy / Zstd), GeoJSON (normal / gzip), GPKG (normal / simplified) |
+| ID  | Experiment          | Variable                                                                                    |
+| --- | ------------------- | ------------------------------------------------------------------------------------------- |
+| D1  | Format vs Operation | Dataset size (Small / Medium / Large)                                                       |
+| D2  | Geometry Complexity | Points, Lines, Simple Polygons, Complex Polygons                                            |
+| D3  | Spatial Indexing    | With vs Without spatial index                                                               |
+| D6  | Compression Codec   | Parquet (uncompressed / Snappy / Zstd), GeoJSON (normal / gzip), GPKG (normal / simplified) |
 
 ---
 
@@ -70,12 +70,12 @@ Each experiment runs the target operation **30 times**. The first 10 and last 10
 
 ## Datasets
 
-| Experiment | Source File | Geometry Types |
-|------------|-------------|----------------|
-| D1 | `data/tanzania.gpkg` (OSM Tanzania) | Polygons of interest |
-| D2 | `data/maldives.gpkg` (OSM Maldives) | Points, Lines, Simple Polygons, Complex Polygons |
-| D3 | `index_data/sample_[no]index.gpkg` | Polygons |
-| D6 | `compression_data/` | Mixed |
+| Experiment | Source File                         | Geometry Types                                   |
+| ---------- | ----------------------------------- | ------------------------------------------------ |
+| D1         | `data/tanzania.gpkg` (OSM Tanzania) | Polygons of interest                             |
+| D2         | `data/maldives.gpkg` (OSM Maldives) | Points, Lines, Simple Polygons, Complex Polygons |
+| D3         | `index_data/sample_[no]index.gpkg`  | Polygons                                         |
+| D6         | `compression_data/`                 | Mixed                                            |
 
 Dataset sizes used in D1: **Small** (Maldives), **Medium** (Bosnia), **Large** (Tanzania).
 
@@ -117,18 +117,6 @@ python d2.py   # Reads d2_plots/geometry_experiments.csv
 python d3.py   # Reads d3_plots/index_experiment.csv
 python d6.py   # Reads d6_plots/compression_experiment.csv
 ```
-
----
-
-## Web App (inherited from DBJoules)
-
-`main_app.py` also contains a Flask web application for the original DBJoules workflow — measuring energy for SQL/NoSQL queries across MySQL, PostgreSQL, MongoDB, and Couchbase.
-
-```bash
-python main_app.py   # starts Flask on http://127.0.0.1:5000
-```
-
-This part requires local installations of MySQL, PostgreSQL, MongoDB, and/or Couchbase.
 
 ---
 
