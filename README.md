@@ -146,6 +146,14 @@ See `docs/dependencies.txt` for the full list.
 
 ---
 
+## Datasets Used
+
+The datasets used can be found at:
+- https://drive.google.com/drive/folders/1EIDndo0Y84OvcSo8QTWpQ9LoVxj6PYYT (data folder)
+- https://drive.google.com/drive/folders/1Jp5C31faS5Krm1dqEPWZlpkVgepivu2d (geom_data folder)
+
+---
+
 ## Acknowledgements
 
 This project extends the methodology of [DBJoules](https://github.com/rishalab/DBJoules) (Towards Energy Efficient Databases) to the domain of spatial data formats. Geospatial data sourced from [OpenStreetMap](https://www.openstreetmap.org/) via Geofabrik.
