@@ -1,34 +1,163 @@
-# DBJoules
+# SpatialJoules
 
-Towards Energy Efficient Databases
+Energy Profiling of Spatial Data Formats
 
-# Description
+## Overview
 
-DBJoules measures the energy consumption of queries written in various databases. This tool can be serves as a valuable resource for developers and practitioners seeking to develop energy-aware application.
+SpatialJoules measures the energy consumed by common spatial operations (SELECT, INSERT, UPDATE, DELETE, JOIN) across different geospatial file formats. It is directly inspired by [DBJoules](https://github.com/rishalab/DBJoules), which benchmarks energy across relational and NoSQL databases — this project applies the same methodology to spatial formats.
 
-# System Requirements
+**Formats benchmarked:** GeoJSON, Shapefile (SHP), GeoPackage (GPKG), GeoParquet
 
-1. Windows Operating System</li>
-2. Have <a href="https://www.python.org/downloads/">Python</a>, <a href="https://dev.mysql.com/downloads/installer/">MySQL</a>, <a href="https://www.postgresql.org/download/">PostgreSQL</a>, <a href="https://www.mongodb.com/try/download/community">MongoDB</a>, <a href="https://www.couchbase.com/downloads/?family=couchbase-server">Couchbase</a> installed in your system.</li>
-3. It is recommended to download couchbase-server of version 7.0.2</li>
+**Experiments:**
 
-# Steps to run
+| ID | Experiment | Variable |
+|----|------------|----------|
+| D1 | Format vs Operation | Dataset size (Small / Medium / Large) |
+| D2 | Geometry Complexity | Points, Lines, Simple Polygons, Complex Polygons |
+| D3 | Spatial Indexing | With vs Without spatial index |
+| D6 | Compression Codec | Parquet (uncompressed / Snappy / Zstd), GeoJSON (normal / gzip), GPKG (normal / simplified) |
 
-1. Clone the repository: '''git clone https://github.com/rishalab/DBJoules.git'''
-2. Run "setup.py" file to install necessary dependencies: '''python setup.py'''
-3. Run "stop_background_processes.py" file to stop all the currently running background processes '''python stop_background_processes.py'''
-4. Command to start the tool '''python main_app.py'''
+---
 
-# Usage
+## Repository Structure
 
-1. Measuring energy consumption due to query execution in four databases: MySQL, PostgreSQL, MongoDB, Couchbase.
-2. Comparing energy consumption among these databases.
+```
+SDS-Project/
+├── Tracker/
+│   ├── main.py          # Tracker class, @track decorator, all run_*_operation functions
+│   └── utils.py         # CPU/RAM helpers, config I/O
+├── main_app.py          # Experiment runner (choose D1/D2/D3/D6) + Flask web app
+├── d1.py                # Plot generation for D1
+├── d2.py                # Plot generation for D2
+├── d3.py                # Plot generation for D3
+├── d6.py                # Plot generation for D6
+├── d1_plots/            # D1 results and charts
+├── d2_plots/            # D2 results and charts
+├── d3_plots/            # D3 results and charts
+├── d6_plots/            # D6 results and charts
+├── generate_dataset_1.py  # Converts OSM Tanzania data → all formats (D1)
+├── generate_dataset_2.py  # Converts OSM Maldives data → geometry datasets (D2)
+├── generate_dataset_3.py  # Builds indexed / non-indexed GPKG files (D3)
+├── generate_dataset_6.py  # Builds compressed variants (D6)
+├── compression_data/    # Pre-built files for D6
+├── index_data/          # Pre-built files for D3
+├── docs/
+│   └── dependencies.txt
+└── Experiments/         # Inherited DBJoules CSV outputs and query scripts
+```
 
-# Important Links
+---
 
-1. [Demonstration Video](https://www.youtube.com/watch?v=hP4pWJ4AKxE)
-2. [Tool Website](https://rishalab.github.io/DBJoules/)
+## How It Works
 
+### Energy Measurement (`Tracker/main.py`)
 
-# Tool Demo:
-![DBJoules_Output](https://github.com/rishalab/DBJoules/assets/91315524/c5149281-1e89-4ec5-a0a3-0e69bbe9d63a)
+The `Tracker` class wraps a code block between `.start()` and `.stop()` calls. At `stop()` it reads CPU% and RAM% via `psutil` and computes:
+
+```
+cpu_energy  = cpu_percent  × 1e-5   (joules proxy)
+ram_energy  = ram_percent  × 1e-6   (joules proxy)
+total_energy = cpu_energy + ram_energy
+```
+
+The `@track` decorator applies this automatically, returning `(duration, energy, result)`.
+
+### Experiment Runner (`run_experiment`)
+
+Each experiment runs the target operation **30 times**. The first 10 and last 10 runs are discarded (warm-up / cool-down stabilization). Mean and standard deviation are computed over the remaining 10 runs.
+
+---
+
+## Datasets
+
+| Experiment | Source File | Geometry Types |
+|------------|-------------|----------------|
+| D1 | `data/tanzania.gpkg` (OSM Tanzania) | Polygons of interest |
+| D2 | `data/maldives.gpkg` (OSM Maldives) | Points, Lines, Simple Polygons, Complex Polygons |
+| D3 | `index_data/sample_[no]index.gpkg` | Polygons |
+| D6 | `compression_data/` | Mixed |
+
+Dataset sizes used in D1: **Small** (Maldives), **Medium** (Bosnia), **Large** (Tanzania).
+
+---
+
+## Running Experiments
+
+### 1. Generate datasets
+
+```bash
+python generate_dataset_1.py   # D1 — format datasets
+python generate_dataset_2.py   # D2 — geometry datasets
+python generate_dataset_3.py   # D3 — index datasets
+python generate_dataset_6.py   # D6 — compression datasets
+```
+
+### 2. Run an experiment
+
+```bash
+python main_app.py
+```
+
+You will be prompted to pick one:
+
+```
+1 → Format vs Operation (Dataset Size)
+2 → Geometry Complexity Experiment
+3 → Spatial Index (With vs Without Index)
+6 → Compression Codec Experiment
+```
+
+Results are appended/written to the corresponding `d*_plots/*.csv` file.
+
+### 3. Generate plots
+
+```bash
+python d1.py   # Reads d1_plots/format_experiment.csv  → saves PNGs to d1_plots/
+python d2.py   # Reads d2_plots/geometry_experiments.csv
+python d3.py   # Reads d3_plots/index_experiment.csv
+python d6.py   # Reads d6_plots/compression_experiment.csv
+```
+
+---
+
+## Web App (inherited from DBJoules)
+
+`main_app.py` also contains a Flask web application for the original DBJoules workflow — measuring energy for SQL/NoSQL queries across MySQL, PostgreSQL, MongoDB, and Couchbase.
+
+```bash
+python main_app.py   # starts Flask on http://127.0.0.1:5000
+```
+
+This part requires local installations of MySQL, PostgreSQL, MongoDB, and/or Couchbase.
+
+---
+
+## Dependencies
+
+Install with `pip install <name>`:
+
+```
+geopandas
+pandas
+numpy
+matplotlib
+seaborn
+psutil
+flask
+werkzeug
+psycopg2
+pymongo
+mysql-connector-python
+couchbase
+fiona
+shapely
+pyarrow
+```
+
+See `docs/dependencies.txt` for the full list.
+
+---
+
+## Acknowledgements
+
+This project extends the methodology of [DBJoules](https://github.com/rishalab/DBJoules) (Towards Energy Efficient Databases) to the domain of spatial data formats. Geospatial data sourced from [OpenStreetMap](https://www.openstreetmap.org/) via Geofabrik.
